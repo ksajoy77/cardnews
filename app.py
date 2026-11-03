@@ -2,10 +2,9 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 
-# 1. 화면 기본 설정
+# 1. 화면 기본 설정 및 버튼 스타일
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
-# 하단 생성 버튼 인디핑크 전용 스타일
 st.markdown("""
 <style>
 div[data-testid="stButton"] > button {
@@ -21,7 +20,7 @@ div[data-testid="stButton"] > button {
 
 st.title("📸 카드뉴스공장")
 
-# 36가지 6x6 컬러 팔레트
+# 36가지 초소형 컬러 팔레트 (가로 6 x 세로 6)
 PALETTE_36 = [
     "#000000", "#333333", "#666666", "#999999", "#D9D9D9", "#FFFFFF",
     "#8B0000", "#FF0000", "#FF453A", "#FF6B6B", "#FF8E8E", "#FFC1C1",
@@ -31,7 +30,7 @@ PALETTE_36 = [
     "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
 ]
 
-# 세션 상태 초기화
+# 세션 색상 저장소
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
@@ -39,39 +38,9 @@ if "shadow_color" not in st.session_state:
 if "outline_color" not in st.session_state:
     st.session_state.outline_color = "#FFFFFF"
 if "action_text_color" not in st.session_state:
-    st.session_state.action_text_color = "#555555"
+    st.session_state.action_text_color = "#FF3B30"
 if "action_outline_color" not in st.session_state:
     st.session_state.action_outline_color = "#FFFFFF"
-
-# 2. 문구 입력
-st.markdown("---")
-st.subheader("✍️ 헤드라인 입력")
-headline_text = st.text_input("헤드라인 문구", value="50대에 시작하는 월 300 파이프라인", label_visibility="collapsed")
-
-st.subheader("📢 캡션유도문장 입력")
-action_text = st.text_input("캡션 유도 문구", value="👉 상세한 내용은 본문 내용 확인", label_visibility="collapsed")
-
-# 3. 폰트 및 위치 설정
-st.markdown("---")
-font_options = {
-    "혜자로운체 (추천)": "GSHYEJAROUNTTF-Bold.ttf",
-    "잘난고딕": "JalnanGothicTTF.ttf",
-    "그리운 몽토리": "Griun_Mongtori-Rg.ttf"
-}
-selected_font_label = st.selectbox("폰트 선택", list(font_options.keys()))
-font_path = font_options[selected_font_label]
-
-font_size = st.slider("헤드라인 글자 크기", min_value=30, max_value=90, value=55)
-text_y_pos = st.slider("헤드라인 시작 위치", min_value=50, max_value=600, value=250)
-
-# 두껍게 / 그림자 / 외곽선 체크박스
-col_chk1, col_chk2, col_chk3 = st.columns(3)
-with col_chk1:
-    use_bold = st.checkbox("두껍게", value=True)
-with col_chk2:
-    use_shadow = st.checkbox("그림자 효과", value=False)
-with col_chk3:
-    use_outline = st.checkbox("외곽선 효과", value=False)
 
 # 1/4 크기 초소형 모눈판 렌더링 함수
 def render_mini_color_grid(label, state_key):
@@ -94,27 +63,48 @@ def render_mini_color_grid(label, state_key):
     )
     st.session_state[state_key] = selected
 
-# 헤드라인 색상
-st.markdown("##### [헤드라인 색상]")
+# 2. 헤드라인 입력 섹션
+st.markdown("---")
+st.subheader("✍️ 헤드라인 입력")
+headline_text = st.text_input("헤드라인 문구", value="50대에 시작하는 월 300 파이프라인", label_visibility="collapsed")
+
+# 3. 헤드라인 폰트 및 스타일
+font_options = {
+    "혜자로운체 (추천)": "GSHYEJAROUNTTF-Bold.ttf",
+    "잘난고딕": "JalnanGothicTTF.ttf",
+    "그리운 몽토리": "Griun_Mongtori-Rg.ttf"
+}
+selected_font_label = st.selectbox("폰트 선택", list(font_options.keys()))
+font_path = font_options[selected_font_label]
+
+font_size = st.slider("헤드라인 글자 크기", min_value=30, max_value=90, value=55)
+text_y_pos = st.slider("헤드라인 위치", min_value=50, max_value=600, value=250)
+
+col_chk1, col_chk2, col_chk3 = st.columns(3)
+with col_chk1:
+    use_bold = st.checkbox("두껍게", value=True)
+with col_chk2:
+    use_shadow = st.checkbox("그림자", value=False)
+with col_chk3:
+    use_outline = st.checkbox("외곽선", value=False)
+
 render_mini_color_grid("헤드라인 글자 색상", "text_color")
 if use_shadow:
     render_mini_color_grid("헤드라인 그림자 색상", "shadow_color")
 if use_outline:
     render_mini_color_grid("헤드라인 외곽선 색상", "outline_color")
 
-# 캡션유도문장 색상
-st.markdown("##### [캡션유도문장 색상]")
+# 4. 캡션유도문장 섹션 (디자인 선택 바로 위로 원위치 + 자체 색상 모눈판 배치)
+st.markdown("---")
+st.subheader("📢 캡션유도문장")
+action_text = st.text_input("캡션 유도 문구", value="👉 상세한 내용은 본문 내용 확인", label_visibility="collapsed")
+
+use_action_outline = st.checkbox("유도문장 외곽선", value=False)
 render_mini_color_grid("유도문장 글자 색상", "action_text_color")
-if use_outline:
+if use_action_outline:
     render_mini_color_grid("유도문장 외곽선 색상", "action_outline_color")
 
-text_color = st.session_state.text_color
-shadow_color = st.session_state.shadow_color
-outline_color = st.session_state.outline_color
-action_text_color = st.session_state.action_text_color
-action_outline_color = st.session_state.action_outline_color
-
-# 4. 디자인 선택
+# 5. 디자인 선택
 st.markdown("---")
 st.subheader("🎨 디자인 선택")
 design_type = st.radio("", ["기본형", "사진형"], horizontal=True, label_visibility="collapsed")
@@ -136,7 +126,7 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 5. 이미지 생성 로직
+# 6. 이미지 생성 함수
 def create_card():
     width, height = 1080, 1350
     
@@ -149,10 +139,9 @@ def create_card():
         
     draw = ImageDraw.Draw(image)
     
-    # 폰트 불러오기
     try:
         font = ImageFont.truetype(font_path, font_size)
-        sub_font = ImageFont.truetype(font_path, int(font_size * 0.55))
+        sub_font = ImageFont.truetype(font_path, int(font_size * 0.52))
         brand_font = ImageFont.truetype(font_path, 32)
     except:
         font = ImageFont.load_default()
@@ -164,30 +153,29 @@ def create_card():
         w = bbox[2] - bbox[0]
         return (width - w) // 2
 
-    # 1) 헤드라인 문구
+    # 1) 헤드라인 출력 (독립 색상)
     hx = get_text_center_x(headline_text, font)
     if use_shadow:
-        draw.text((hx + 4, text_y_pos + 4), headline_text, font=font, fill=shadow_color)
+        draw.text((hx + 4, text_y_pos + 4), headline_text, font=font, fill=st.session_state.shadow_color)
     if use_outline:
         for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
-            draw.text((hx + dx, text_y_pos + dy), headline_text, font=font, fill=outline_color)
-    draw.text((hx, text_y_pos), headline_text, font=font, fill=text_color)
+            draw.text((hx + dx, text_y_pos + dy), headline_text, font=font, fill=st.session_state.outline_color)
+    draw.text((hx, text_y_pos), headline_text, font=font, fill=st.session_state.text_color)
 
-    # 2) 캡션유도문장 (헤드라인 다음 줄)
-    action_y_pos = text_y_pos + font_size + 40
+    # 2) 캡션유도문장 출력 (헤드라인 다음 줄 + 유도문장 전용 독립 색상)
+    action_y_pos = text_y_pos + font_size + 35
     ax = get_text_center_x(action_text, sub_font)
-    if use_outline:
+    if use_action_outline:
         for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
-            draw.text((ax + dx, action_y_pos + dy), action_text, font=sub_font, fill=action_outline_color)
-    draw.text((ax, action_y_pos), action_text, font=sub_font, fill=action_text_color)
+            draw.text((ax + dx, action_y_pos + dy), action_text, font=sub_font, fill=st.session_state.action_outline_color)
+    draw.text((ax, action_y_pos), action_text, font=sub_font, fill=st.session_state.action_text_color)
 
-    # 3) 왼쪽 하단 브랜딩 계정명 (@duruduru.page)
-    brand_text = "@duruduru.page"
-    draw.text((50, 1270), brand_text, font=brand_font, fill="#888888")
+    # 3) 왼쪽 하단 브랜딩
+    draw.text((50, 1270), "@duruduru.page", font=brand_font, fill="#888888")
 
     return image
 
-# 6. 생성 및 다운로드
+# 7. 버튼 및 다운로드
 st.markdown("---")
 if st.button("🚀 카드뉴스 이미지 즉시 생성하기", use_container_width=True):
     result_img = create_card()
