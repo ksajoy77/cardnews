@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 
 # 1. 화면 기본 설정
@@ -21,7 +21,7 @@ div[data-testid="stButton"] > button {
 
 st.title("📸 카드뉴스공장")
 
-# 36가지 6x6 컬러 팔레트 (가로 6 x 세로 6)
+# 36가지 6x6 컬러 팔레트
 PALETTE_36 = [
     "#000000", "#333333", "#666666", "#999999", "#D9D9D9", "#FFFFFF",
     "#8B0000", "#FF0000", "#FF453A", "#FF6B6B", "#FF8E8E", "#FFC1C1",
@@ -31,7 +31,6 @@ PALETTE_36 = [
     "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
 ]
 
-# 세션 상태에 선택한 색상 저장
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
@@ -65,20 +64,19 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 진짜 색깔이 칠해진 6x6 모눈판 렌더링 함수
-def render_real_color_grid(label, state_key):
+# 1/4 크기로 축소된 6x6 초소형 컬러 모눈판 함수
+def render_mini_color_grid(label, state_key):
     st.write(f"**{label}**")
     current_color = st.session_state[state_key]
     
-    # 6개씩 6줄 HTML 모눈판 표시 (색깔 직접 눈으로 확인)
-    grid_html = "<div style='display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: 100%; max-width: 320px; margin-bottom: 10px;'>"
+    # 가로폭 160px, 타일 높이 15px로 1/4 수준 축소
+    grid_html = "<div style='display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; width: 160px; margin-bottom: 6px;'>"
     for c in PALETTE_36:
-        border_style = "3px solid #FF3B30" if c.upper() == current_color.upper() else "1px solid #ccc"
-        grid_html += f"<div style='background-color: {c}; height: 32px; border-radius: 4px; border: {border_style};'></div>"
+        border_style = "2px solid #FF3B30" if c.upper() == current_color.upper() else "1px solid rgba(0,0,0,0.15)"
+        grid_html += f"<div style='background-color: {c}; height: 16px; border-radius: 2px; border: {border_style};'></div>"
     grid_html += "</div>"
     st.markdown(grid_html, unsafe_allow_html=True)
     
-    # 간편 선택용 드롭다운 (선택 즉시 위 모눈판에 빨간 테두리로 표시)
     selected = st.selectbox(
         f"{label} 색상 선택",
         options=PALETTE_36,
@@ -89,13 +87,13 @@ def render_real_color_grid(label, state_key):
     st.session_state[state_key] = selected
 
 # 모눈판 출력
-render_real_color_grid("글자 색상", "text_color")
+render_mini_color_grid("글자 색상", "text_color")
 
 if use_shadow:
-    render_real_color_grid("그림자 색상", "shadow_color")
+    render_mini_color_grid("그림자 색상", "shadow_color")
 
 if use_outline:
-    render_real_color_grid("외곽선 색상", "outline_color")
+    render_mini_color_grid("외곽선 색상", "outline_color")
 
 text_color = st.session_state.text_color
 shadow_color = st.session_state.shadow_color
@@ -128,13 +126,18 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 이미지 생성 함수
+# 6. 이미지 생성 함수 (세로 사진 원본 비율 및 회전 유지 완벽 처리)
 def create_card():
-    width, height = 1080, 1080
+    # 세로형 인스타그램 카드뉴스 표준 (1080 x 1350)
+    width, height = 1080, 1350
     
     if design_type == "사진형" and uploaded_file is not None:
-        image = Image.open(uploaded_file).convert("RGB")
-        image = image.resize((width, height))
+        # 스마트폰 사진 EXIF 회전값 자동 보정 (세로 사진이 가로로 눕는 현상 해결)
+        raw_image = Image.open(uploaded_file)
+        raw_image = ImageOps.exif_transpose(raw_image).convert("RGB")
+        
+        # 원본 세로 비율 꽉 채우기 (찌그러짐 없이 센터 크롭)
+        image = ImageOps.fit(raw_image, (width, height), Image.Resampling.LANCZOS)
     else:
         image = Image.new("RGB", (width, height), color=bg_color)
         
@@ -166,9 +169,9 @@ def create_card():
     # 헤드라인
     draw.text((hx, text_y_pos), headline_text, font=font, fill=text_color)
 
-    # 캡션유도문장
+    # 캡션유도문장 (하단 배치)
     ax = get_text_center_x(action_text, sub_font)
-    draw.text((ax, 960), action_text, font=sub_font, fill="#666666")
+    draw.text((ax, 1220), action_text, font=sub_font, fill="#666666")
 
     return image
 
