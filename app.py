@@ -5,9 +5,23 @@ import io
 # 1. 화면 기본 설정
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
+# 하단 생성 버튼 인디핑크 전용 스타일
+st.markdown("""
+<style>
+div[data-testid="stButton"] > button {
+    background-color: #F4C2C2 !important;
+    color: #333333 !important;
+    border: none !important;
+    font-weight: bold !important;
+    padding: 0.7rem 1rem !important;
+    border-radius: 10px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("📸 카드뉴스공장")
 
-# 36가지 실전 6x6 컬러 팔레트 (가로 6개 x 세로 6개)
+# 36가지 6x6 컬러 팔레트 (가로 6 x 세로 6)
 PALETTE_36 = [
     "#000000", "#333333", "#666666", "#999999", "#D9D9D9", "#FFFFFF",
     "#8B0000", "#FF0000", "#FF453A", "#FF6B6B", "#FF8E8E", "#FFC1C1",
@@ -17,7 +31,7 @@ PALETTE_36 = [
     "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
 ]
 
-# 세션 상태 초기화
+# 세션 상태에 선택한 색상 저장
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
@@ -51,37 +65,37 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 모바일 전용 6x6 모눈판 렌더링 함수
-def render_mobile_grid(title, state_key):
-    st.write(f"**{title}**")
-    current_val = st.session_state[state_key]
+# 진짜 색깔이 칠해진 6x6 모눈판 렌더링 함수
+def render_real_color_grid(label, state_key):
+    st.write(f"**{label}**")
+    current_color = st.session_state[state_key]
     
-    # 6개씩 묶어서 6줄로 구성
-    for row_idx in range(6):
-        row_colors = PALETTE_36[row_idx * 6 : (row_idx + 1) * 6]
-        choice = st.radio(
-            f"{title}_{row_idx}",
-            options=row_colors,
-            index=row_colors.index(current_val) if current_val in row_colors else None,
-            format_func=lambda c: f"■ {c}",
-            horizontal=True,
-            key=f"grid_{state_key}_{row_idx}",
-            label_visibility="collapsed"
-        )
-        if choice and choice != current_val:
-            st.session_state[state_key] = choice
-            st.rerun()
+    # 6개씩 6줄 HTML 모눈판 표시 (색깔 직접 눈으로 확인)
+    grid_html = "<div style='display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: 100%; max-width: 320px; margin-bottom: 10px;'>"
+    for c in PALETTE_36:
+        border_style = "3px solid #FF3B30" if c.upper() == current_color.upper() else "1px solid #ccc"
+        grid_html += f"<div style='background-color: {c}; height: 32px; border-radius: 4px; border: {border_style};'></div>"
+    grid_html += "</div>"
+    st.markdown(grid_html, unsafe_allow_html=True)
+    
+    # 간편 선택용 드롭다운 (선택 즉시 위 모눈판에 빨간 테두리로 표시)
+    selected = st.selectbox(
+        f"{label} 색상 선택",
+        options=PALETTE_36,
+        index=PALETTE_36.index(current_color) if current_color in PALETTE_36 else 0,
+        key=f"select_{state_key}",
+        label_visibility="collapsed"
+    )
+    st.session_state[state_key] = selected
 
-# 글자 색상 모눈판
-render_mobile_grid("글자 색상", "text_color")
+# 모눈판 출력
+render_real_color_grid("글자 색상", "text_color")
 
-# 그림자 색상 모눈판 (체크 시 노출)
 if use_shadow:
-    render_mobile_grid("그림자 색상", "shadow_color")
+    render_real_color_grid("그림자 색상", "shadow_color")
 
-# 외곽선 색상 모눈판 (체크 시 노출)
 if use_outline:
-    render_mobile_grid("외곽선 색상", "outline_color")
+    render_real_color_grid("외곽선 색상", "outline_color")
 
 text_color = st.session_state.text_color
 shadow_color = st.session_state.shadow_color
@@ -160,21 +174,6 @@ def create_card():
 
 # 7. 버튼 및 다운로드
 st.markdown("---")
-
-# 인디핑크 생성 버튼 전용 CSS
-st.markdown("""
-<style>
-div.stButton > button {
-    background-color: #F4C2C2 !important;
-    color: #333333 !important;
-    border: none !important;
-    font-weight: bold !important;
-    padding: 0.7rem 1rem !important;
-    border-radius: 10px !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 if st.button("🚀 카드뉴스 이미지 즉시 생성하기", use_container_width=True):
     result_img = create_card()
     st.image(result_img, caption="완성된 카드뉴스 미리보기", use_container_width=True)
