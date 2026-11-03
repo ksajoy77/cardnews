@@ -5,32 +5,6 @@ import io
 # 1. 화면 기본 설정
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
-# 하단 생성 버튼 인디핑크 스타일 및 4x6 바둑판 전용 여백
-st.markdown("""
-<style>
-/* 카드뉴스 즉시 생성하기 핑크 버튼 */
-div[data-testid="stButton"]:last-of-type > button {
-    background-color: #F4C2C2 !important;
-    color: #333333 !important;
-    border: none !important;
-    font-weight: bold !important;
-    padding: 0.7rem 1rem !important;
-    border-radius: 10px !important;
-}
-
-/* 4x6 컬러 바둑판 타일 버튼 최적화 (가로 4칸 고정) */
-div[data-testid="column"] button {
-    height: 34px !important;
-    min-height: 34px !important;
-    padding: 0px !important;
-    margin: 2px 0px !important;
-    border-radius: 4px !important;
-    font-size: 13px !important;
-    font-weight: bold !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 st.title("📸 카드뉴스공장")
 
 # 가로 4칸 x 세로 6줄 (총 24가지 핵심 컬러)
@@ -39,7 +13,7 @@ PALETTE_24 = [
     "#8B0000", "#FF0000", "#FF453A", "#FF8E8E",
     "#FF851B", "#FFA500", "#FFE812", "#FFF9E6",
     "#1E4620", "#30D158", "#20C997", "#E9F3ED",
-    "#001F3F", "#007AFF", "#32ADE6", "#E1F5FE",
+    "#001F3F", "#0074D9", "#32ADE6", "#E1F5FE",
     "#4B0082", "#AF52DE", "#F4C2C2", "#F8EDE9"
 ]
 
@@ -81,12 +55,35 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 터치/클릭 즉시 선택되는 가로 4칸 x 세로 6줄 네이티브 바둑판
+# 터치 즉시 반응하고 색상이 100% 입혀지는 4x6 바둑판 함수
 def render_4x6_grid(label, state_key):
     st.write(f"**{label}**")
     cur_color = st.session_state[state_key].upper()
     
-    # 6개 행 생성
+    # 각 팔레트 영역별 전용 CSS를 동적으로 주입
+    style_blocks = []
+    for idx, c in enumerate(PALETTE_24):
+        is_sel = (cur_color == c.upper())
+        txt_c = "#FFFFFF" if c in ["#000000", "#555555", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
+        border_css = "3px solid #FF3B30 !important" if is_sel else "1px solid #BBBBBB !important"
+        
+        style_blocks.append(f"""
+        button[key="b_{state_key}_{idx}"] {{
+            background-color: {c} !important;
+            color: {txt_c} !important;
+            border: {border_css};
+            height: 34px !important;
+            min-height: 34px !important;
+            padding: 0px !important;
+            margin: 2px 0px !important;
+            border-radius: 4px !important;
+            font-size: 13px !important;
+            font-weight: bold !important;
+        }}
+        """)
+    
+    st.markdown(f"<style>{''.join(style_blocks)}</style>", unsafe_allow_html=True)
+
     for r in range(6):
         cols = st.columns(4)
         for c in range(4):
@@ -94,27 +91,13 @@ def render_4x6_grid(label, state_key):
             color_hex = PALETTE_24[idx]
             is_active = (cur_color == color_hex.upper())
             mark = "✔" if is_active else ""
-            txt_color = "#FFFFFF" if color_hex in ["#000000", "#555555", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
-            border_css = "3px solid #FF3B30" if is_active else "1px solid #CCCCCC"
             
             with cols[c]:
-                # 각 버튼에 해당 색상과 테두리 직접 주입
-                st.markdown(f"""
-                <style>
-                div[data-testid="stHorizontalBlock"] div:nth-child({c+1}) button[key="btn_{state_key}_{idx}"] {{
-                    background-color: {color_hex} !important;
-                    color: {txt_color} !important;
-                    border: {border_css} !important;
-                }}
-                </style>
-                """, unsafe_allow_html=True)
-                
-                # 터치 시 세션 저장 후 즉시 리런
-                if st.button(mark, key=f"btn_{state_key}_{idx}", use_container_width=True):
+                if st.button(mark, key=f"b_{state_key}_{idx}", use_container_width=True):
                     st.session_state[state_key] = color_hex
                     st.rerun()
 
-# 헤드라인 전용 4x6 바둑판
+# 헤드라인 전용 4x6 바둑판 출력
 render_4x6_grid("글자색상", "text_color")
 if use_shadow:
     render_4x6_grid("그림자색상", "shadow_color")
@@ -153,10 +136,10 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 이미지 생성 로직 (좌우 여백 80px 보장 & 첫 글자 줄맞춤)
+# 6. 이미지 생성 로직
 def create_card():
     width, height = 1080, 1350
-    margin_x = 80  # 좌우 여백 확보
+    margin_x = 80
     
     if design_type == "사진형" and uploaded_file is not None:
         raw_image = Image.open(uploaded_file)
@@ -183,7 +166,7 @@ def create_card():
     curr_y = text_y_pos
     line_spacing = int(font_size * 1.35)
     
-    # 1) 헤드라인 출력 (대표님이 엔터 친 라인 그대로 좌측 margin_x에 정렬)
+    # 1) 헤드라인 출력 (좌측 margin_x에 완벽 정렬)
     for line in lines:
         if use_shadow:
             draw.text((margin_x + 4, curr_y + 4), line, font=font, fill=st.session_state.shadow_color)
@@ -193,7 +176,7 @@ def create_card():
         draw.text((margin_x, curr_y), line, font=font, fill=st.session_state.text_color)
         curr_y += line_spacing
 
-    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 margin_x에 정확히 수직 줄맞춤)
+    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 정렬)
     curr_y += 15
     safe_action_text = action_text.replace("👉", "▶").replace("☞", "▶")
     
@@ -202,14 +185,33 @@ def create_card():
             draw.text((margin_x + dx, curr_y + dy), safe_action_text, font=sub_font, fill=st.session_state.action_outline_color)
     draw.text((margin_x, curr_y), safe_action_text, font=sub_font, fill=st.session_state.action_text_color)
 
-    # 3) 왼쪽 하단 브랜딩 (margin_x 정렬)
+    # 3) 왼쪽 하단 브랜딩
     draw.text((margin_x, 1260), "@duruduru.page", font=brand_font, fill="#888888")
 
     return image
 
-# 7. 버튼 및 다운로드
+# 7. 생성 및 다운로드 (이 버튼만 단독 핑크 적용)
 st.markdown("---")
-if st.button("🚀 카드뉴스 이미지 즉시 생성하기", use_container_width=True):
+st.markdown("""
+<style>
+div.generate-btn-wrap > button {
+    background-color: #F4C2C2 !important;
+    color: #333333 !important;
+    border: none !important;
+    font-weight: bold !important;
+    padding: 0.7rem 1rem !important;
+    border-radius: 10px !important;
+    width: 100% !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# 클래스로 격리하여 모눈판에 간섭하지 않음
+st.markdown('<div class="generate-btn-wrap">', unsafe_allow_html=True)
+run_btn = st.button("🚀 카드뉴스 이미지 즉시 생성하기", key="final_run_btn", use_container_width=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+if run_btn:
     result_img = create_card()
     st.image(result_img, caption="완성된 카드뉴스 미리보기", use_container_width=True)
     
