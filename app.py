@@ -31,19 +31,28 @@ PALETTE_36 = [
     "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
 ]
 
+# 세션 상태 초기화
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
     st.session_state.shadow_color = "#999999"
 if "outline_color" not in st.session_state:
     st.session_state.outline_color = "#FFFFFF"
+if "action_text_color" not in st.session_state:
+    st.session_state.action_text_color = "#555555"
+if "action_outline_color" not in st.session_state:
+    st.session_state.action_outline_color = "#FFFFFF"
 
-# 2. 헤드라인 입력
+# 2. 문구 입력
 st.markdown("---")
 st.subheader("✍️ 헤드라인 입력")
-headline_text = st.text_input("", value="50대에 시작하는 월 300 파이프라인", label_visibility="collapsed")
+headline_text = st.text_input("헤드라인 문구", value="50대에 시작하는 월 300 파이프라인", label_visibility="collapsed")
 
-# 3. 폰트 및 설정
+st.subheader("📢 캡션유도문장 입력")
+action_text = st.text_input("캡션 유도 문구", value="👉 상세한 내용은 본문 내용 확인", label_visibility="collapsed")
+
+# 3. 폰트 및 위치 설정
+st.markdown("---")
 font_options = {
     "혜자로운체 (추천)": "GSHYEJAROUNTTF-Bold.ttf",
     "잘난고딕": "JalnanGothicTTF.ttf",
@@ -52,24 +61,23 @@ font_options = {
 selected_font_label = st.selectbox("폰트 선택", list(font_options.keys()))
 font_path = font_options[selected_font_label]
 
-font_size = st.slider("글자 크기", min_value=30, max_value=90, value=55)
-text_y_pos = st.slider("헤드라인 위치", min_value=50, max_value=500, value=150)
+font_size = st.slider("헤드라인 글자 크기", min_value=30, max_value=90, value=55)
+text_y_pos = st.slider("헤드라인 시작 위치", min_value=50, max_value=600, value=250)
 
 # 두껍게 / 그림자 / 외곽선 체크박스
 col_chk1, col_chk2, col_chk3 = st.columns(3)
 with col_chk1:
     use_bold = st.checkbox("두껍게", value=True)
 with col_chk2:
-    use_shadow = st.checkbox("그림자", value=False)
+    use_shadow = st.checkbox("그림자 효과", value=False)
 with col_chk3:
-    use_outline = st.checkbox("외곽선", value=False)
+    use_outline = st.checkbox("외곽선 효과", value=False)
 
-# 1/4 크기로 축소된 6x6 초소형 컬러 모눈판 함수
+# 1/4 크기 초소형 모눈판 렌더링 함수
 def render_mini_color_grid(label, state_key):
     st.write(f"**{label}**")
     current_color = st.session_state[state_key]
     
-    # 가로폭 160px, 타일 높이 15px로 1/4 수준 축소
     grid_html = "<div style='display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; width: 160px; margin-bottom: 6px;'>"
     for c in PALETTE_36:
         border_style = "2px solid #FF3B30" if c.upper() == current_color.upper() else "1px solid rgba(0,0,0,0.15)"
@@ -78,7 +86,7 @@ def render_mini_color_grid(label, state_key):
     st.markdown(grid_html, unsafe_allow_html=True)
     
     selected = st.selectbox(
-        f"{label} 색상 선택",
+        f"{label} 선택",
         options=PALETTE_36,
         index=PALETTE_36.index(current_color) if current_color in PALETTE_36 else 0,
         key=f"select_{state_key}",
@@ -86,25 +94,27 @@ def render_mini_color_grid(label, state_key):
     )
     st.session_state[state_key] = selected
 
-# 모눈판 출력
-render_mini_color_grid("글자 색상", "text_color")
-
+# 헤드라인 색상
+st.markdown("##### [헤드라인 색상]")
+render_mini_color_grid("헤드라인 글자 색상", "text_color")
 if use_shadow:
-    render_mini_color_grid("그림자 색상", "shadow_color")
-
+    render_mini_color_grid("헤드라인 그림자 색상", "shadow_color")
 if use_outline:
-    render_mini_color_grid("외곽선 색상", "outline_color")
+    render_mini_color_grid("헤드라인 외곽선 색상", "outline_color")
+
+# 캡션유도문장 색상
+st.markdown("##### [캡션유도문장 색상]")
+render_mini_color_grid("유도문장 글자 색상", "action_text_color")
+if use_outline:
+    render_mini_color_grid("유도문장 외곽선 색상", "action_outline_color")
 
 text_color = st.session_state.text_color
 shadow_color = st.session_state.shadow_color
 outline_color = st.session_state.outline_color
+action_text_color = st.session_state.action_text_color
+action_outline_color = st.session_state.action_outline_color
 
-# 4. 캡션유도문장
-st.markdown("---")
-st.subheader("📢 캡션유도문장")
-action_text = st.text_input("", value="상세한 내용은 본문 내용 확인", label_visibility="collapsed")
-
-# 5. 디자인 선택
+# 4. 디자인 선택
 st.markdown("---")
 st.subheader("🎨 디자인 선택")
 design_type = st.radio("", ["기본형", "사진형"], horizontal=True, label_visibility="collapsed")
@@ -126,56 +136,58 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 이미지 생성 함수 (세로 사진 원본 비율 및 회전 유지 완벽 처리)
+# 5. 이미지 생성 로직
 def create_card():
-    # 세로형 인스타그램 카드뉴스 표준 (1080 x 1350)
     width, height = 1080, 1350
     
     if design_type == "사진형" and uploaded_file is not None:
-        # 스마트폰 사진 EXIF 회전값 자동 보정 (세로 사진이 가로로 눕는 현상 해결)
         raw_image = Image.open(uploaded_file)
         raw_image = ImageOps.exif_transpose(raw_image).convert("RGB")
-        
-        # 원본 세로 비율 꽉 채우기 (찌그러짐 없이 센터 크롭)
         image = ImageOps.fit(raw_image, (width, height), Image.Resampling.LANCZOS)
     else:
         image = Image.new("RGB", (width, height), color=bg_color)
         
     draw = ImageDraw.Draw(image)
     
+    # 폰트 불러오기
     try:
         font = ImageFont.truetype(font_path, font_size)
-        sub_font = ImageFont.truetype(font_path, int(font_size * 0.45))
+        sub_font = ImageFont.truetype(font_path, int(font_size * 0.55))
+        brand_font = ImageFont.truetype(font_path, 32)
     except:
         font = ImageFont.load_default()
         sub_font = ImageFont.load_default()
+        brand_font = ImageFont.load_default()
 
     def get_text_center_x(text, f):
         bbox = draw.textbbox((0, 0), text, font=f)
         w = bbox[2] - bbox[0]
         return (width - w) // 2
 
+    # 1) 헤드라인 문구
     hx = get_text_center_x(headline_text, font)
-    
-    # 그림자
     if use_shadow:
         draw.text((hx + 4, text_y_pos + 4), headline_text, font=font, fill=shadow_color)
-        
-    # 외곽선
     if use_outline:
         for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
             draw.text((hx + dx, text_y_pos + dy), headline_text, font=font, fill=outline_color)
-
-    # 헤드라인
     draw.text((hx, text_y_pos), headline_text, font=font, fill=text_color)
 
-    # 캡션유도문장 (하단 배치)
+    # 2) 캡션유도문장 (헤드라인 다음 줄)
+    action_y_pos = text_y_pos + font_size + 40
     ax = get_text_center_x(action_text, sub_font)
-    draw.text((ax, 1220), action_text, font=sub_font, fill="#666666")
+    if use_outline:
+        for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+            draw.text((ax + dx, action_y_pos + dy), action_text, font=sub_font, fill=action_outline_color)
+    draw.text((ax, action_y_pos), action_text, font=sub_font, fill=action_text_color)
+
+    # 3) 왼쪽 하단 브랜딩 계정명 (@duruduru.page)
+    brand_text = "@duruduru.page"
+    draw.text((50, 1270), brand_text, font=brand_font, fill="#888888")
 
     return image
 
-# 7. 버튼 및 다운로드
+# 6. 생성 및 다운로드
 st.markdown("---")
 if st.button("🚀 카드뉴스 이미지 즉시 생성하기", use_container_width=True):
     result_img = create_card()
