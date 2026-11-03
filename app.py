@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 
@@ -21,23 +22,17 @@ div[data-testid="stButton"] > button {
 
 st.title("📸 카드뉴스공장")
 
-# 가로 4칸 x 세로 6줄 (총 24가지 핵심 실전 컬러)
+# 가로 4칸 x 세로 6줄 (총 24가지 핵심 컬러)
 PALETTE_24 = [
-    # 1행: 기본 무채색
     "#000000", "#555555", "#AAAAAA", "#FFFFFF",
-    # 2행: 레드 & 코랄
     "#8B0000", "#FF0000", "#FF453A", "#FF8E8E",
-    # 3행: 오렌지 & 옐로우
     "#FF851B", "#FFA500", "#FFE812", "#FFF9E6",
-    # 4행: 그린 & 민트
     "#1E4620", "#30D158", "#20C997", "#E9F3ED",
-    # 5행: 블루 & 인디고
     "#001F3F", "#007AFF", "#32ADE6", "#E1F5FE",
-    # 6행: 퍼플 & 감성 핑크
     "#4B0082", "#AF52DE", "#F4C2C2", "#F8EDE9"
 ]
 
-# 세션 상태 초기화
+# 세션 초기화
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
@@ -49,7 +44,7 @@ if "action_text_color" not in st.session_state:
 if "action_outline_color" not in st.session_state:
     st.session_state.action_outline_color = "#FFFFFF"
 
-# 2. 헤드라인 입력 (엔터 줄바꿈 지원)
+# 2. 헤드라인 입력 (엔터로 직접 줄바꿈 가능)
 st.markdown("---")
 st.subheader("✍️ 헤드라인 입력")
 default_headline = "50대에 시작하는\n월 300 파이프라인"
@@ -75,7 +70,7 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 가로 4칸 x 세로 6줄 미니 컬러 바둑판 함수
+# 가로 4칸 x 세로 6줄 독립 샌드박스 바둑판 컴포넌트
 def render_4x6_grid(label, state_key):
     st.write(f"**{label}**")
     
@@ -90,24 +85,38 @@ def render_4x6_grid(label, state_key):
 
     cur_color = st.session_state[state_key].upper()
     
-    # 가로 4칸 x 세로 6줄 (모바일 폭에 딱 맞는 바둑판)
-    grid_html = """
-    <div style='display: grid; grid-template-columns: repeat(4, 40px); gap: 6px; width: 180px; margin-bottom: 12px;'>
-    """
+    # 순수 HTML 컴포넌트로 렌더링 (글자 깨짐 방지)
+    items_html = ""
     for c in PALETTE_24:
         is_sel = (c.upper() == cur_color)
-        border = "3px solid #FF3B30" if is_sel else "1px solid #BBBBBB"
+        border = "3px solid #FF3B30" if is_sel else "1px solid #CCCCCC"
         mark = "✔" if is_sel else ""
         txt_c = "#FFFFFF" if c in ["#000000", "#555555", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
-        
         url_color = c.replace("#", "%23")
-        grid_html += f"""
-        <a href='?{pick_key}={url_color}' target='_self' style='text-decoration:none;'>
-            <div style='background-color:{c}; width:40px; height:30px; border-radius:4px; border:{border}; display:flex; align-items:center; justify-content:center; font-size:13px; color:{txt_c}; font-weight:bold;'>{mark}</div>
-        </a>
+        
+        items_html += f"""
+        <div onclick="parent.window.location.search = '?{pick_key}={url_color}'" 
+             style="background-color:{c}; width:42px; height:32px; border-radius:5px; border:{border}; display:flex; align-items:center; justify-content:center; font-size:14px; color:{txt_c}; font-weight:bold; cursor:pointer; box-sizing:border-box;">
+             {mark}
+        </div>
         """
-    grid_html += "</div>"
-    st.markdown(grid_html, unsafe_allow_html=True)
+
+    full_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{ margin: 0; padding: 0; background: transparent; overflow: hidden; }}
+            .grid {{ display: grid; grid-template-columns: repeat(4, 42px); gap: 6px; width: 190px; }}
+        </style>
+    </head>
+    <body>
+        <div class="grid">{items_html}</div>
+    </body>
+    </html>
+    """
+    components.html(full_html, height=230)
 
 # 헤드라인 전용 4x6 바둑판
 render_4x6_grid("글자색상", "text_color")
@@ -148,10 +157,10 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 이미지 생성 함수
+# 6. 이미지 생성 로직 (좌우 여백 80px 보장 및 줄맞춤)
 def create_card():
     width, height = 1080, 1350
-    margin_x = 80  # 좌우 여백 80px 보장
+    margin_x = 80
     
     if design_type == "사진형" and uploaded_file is not None:
         raw_image = Image.open(uploaded_file)
@@ -188,7 +197,7 @@ def create_card():
         draw.text((margin_x, curr_y), line, font=font, fill=st.session_state.text_color)
         curr_y += line_spacing
 
-    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 margin_x에 정확히 정렬)
+    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 좌측 정렬)
     curr_y += 15
     safe_action_text = action_text.replace("👉", "▶").replace("☞", "▶")
     
