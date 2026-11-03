@@ -1,21 +1,32 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 
 # 1. 화면 기본 설정
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
-# 하단 생성 버튼 인디핑크 전용 스타일
+# 하단 생성 버튼 인디핑크 스타일 및 4x6 바둑판 전용 여백
 st.markdown("""
 <style>
-div[data-testid="stButton"] > button {
+/* 카드뉴스 즉시 생성하기 핑크 버튼 */
+div[data-testid="stButton"]:last-of-type > button {
     background-color: #F4C2C2 !important;
     color: #333333 !important;
     border: none !important;
     font-weight: bold !important;
     padding: 0.7rem 1rem !important;
     border-radius: 10px !important;
+}
+
+/* 4x6 컬러 바둑판 타일 버튼 최적화 (가로 4칸 고정) */
+div[data-testid="column"] button {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0px !important;
+    margin: 2px 0px !important;
+    border-radius: 4px !important;
+    font-size: 13px !important;
+    font-weight: bold !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -32,7 +43,7 @@ PALETTE_24 = [
     "#4B0082", "#AF52DE", "#F4C2C2", "#F8EDE9"
 ]
 
-# 세션 초기화
+# 세션 상태 초기화
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
@@ -44,7 +55,7 @@ if "action_text_color" not in st.session_state:
 if "action_outline_color" not in st.session_state:
     st.session_state.action_outline_color = "#FFFFFF"
 
-# 2. 헤드라인 입력 (엔터로 직접 줄바꿈 가능)
+# 2. 헤드라인 입력 (엔터 줄바꿈 지원)
 st.markdown("---")
 st.subheader("✍️ 헤드라인 입력")
 default_headline = "50대에 시작하는\n월 300 파이프라인"
@@ -70,53 +81,38 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 가로 4칸 x 세로 6줄 독립 샌드박스 바둑판 컴포넌트
+# 터치/클릭 즉시 선택되는 가로 4칸 x 세로 6줄 네이티브 바둑판
 def render_4x6_grid(label, state_key):
     st.write(f"**{label}**")
-    
-    qp = st.query_params
-    pick_key = f"c_{state_key}"
-    if pick_key in qp:
-        chosen_color = qp[pick_key]
-        if chosen_color != st.session_state[state_key]:
-            st.session_state[state_key] = chosen_color
-            st.query_params.clear()
-            st.rerun()
-
     cur_color = st.session_state[state_key].upper()
     
-    # 순수 HTML 컴포넌트로 렌더링 (글자 깨짐 방지)
-    items_html = ""
-    for c in PALETTE_24:
-        is_sel = (c.upper() == cur_color)
-        border = "3px solid #FF3B30" if is_sel else "1px solid #CCCCCC"
-        mark = "✔" if is_sel else ""
-        txt_c = "#FFFFFF" if c in ["#000000", "#555555", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
-        url_color = c.replace("#", "%23")
-        
-        items_html += f"""
-        <div onclick="parent.window.location.search = '?{pick_key}={url_color}'" 
-             style="background-color:{c}; width:42px; height:32px; border-radius:5px; border:{border}; display:flex; align-items:center; justify-content:center; font-size:14px; color:{txt_c}; font-weight:bold; cursor:pointer; box-sizing:border-box;">
-             {mark}
-        </div>
-        """
-
-    full_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{ margin: 0; padding: 0; background: transparent; overflow: hidden; }}
-            .grid {{ display: grid; grid-template-columns: repeat(4, 42px); gap: 6px; width: 190px; }}
-        </style>
-    </head>
-    <body>
-        <div class="grid">{items_html}</div>
-    </body>
-    </html>
-    """
-    components.html(full_html, height=230)
+    # 6개 행 생성
+    for r in range(6):
+        cols = st.columns(4)
+        for c in range(4):
+            idx = r * 4 + c
+            color_hex = PALETTE_24[idx]
+            is_active = (cur_color == color_hex.upper())
+            mark = "✔" if is_active else ""
+            txt_color = "#FFFFFF" if color_hex in ["#000000", "#555555", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
+            border_css = "3px solid #FF3B30" if is_active else "1px solid #CCCCCC"
+            
+            with cols[c]:
+                # 각 버튼에 해당 색상과 테두리 직접 주입
+                st.markdown(f"""
+                <style>
+                div[data-testid="stHorizontalBlock"] div:nth-child({c+1}) button[key="btn_{state_key}_{idx}"] {{
+                    background-color: {color_hex} !important;
+                    color: {txt_color} !important;
+                    border: {border_css} !important;
+                }}
+                </style>
+                """, unsafe_allow_html=True)
+                
+                # 터치 시 세션 저장 후 즉시 리런
+                if st.button(mark, key=f"btn_{state_key}_{idx}", use_container_width=True):
+                    st.session_state[state_key] = color_hex
+                    st.rerun()
 
 # 헤드라인 전용 4x6 바둑판
 render_4x6_grid("글자색상", "text_color")
@@ -157,10 +153,10 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 이미지 생성 로직 (좌우 여백 80px 보장 및 줄맞춤)
+# 6. 이미지 생성 로직 (좌우 여백 80px 보장 & 첫 글자 줄맞춤)
 def create_card():
     width, height = 1080, 1350
-    margin_x = 80
+    margin_x = 80  # 좌우 여백 확보
     
     if design_type == "사진형" and uploaded_file is not None:
         raw_image = Image.open(uploaded_file)
@@ -187,7 +183,7 @@ def create_card():
     curr_y = text_y_pos
     line_spacing = int(font_size * 1.35)
     
-    # 1) 헤드라인 출력
+    # 1) 헤드라인 출력 (대표님이 엔터 친 라인 그대로 좌측 margin_x에 정렬)
     for line in lines:
         if use_shadow:
             draw.text((margin_x + 4, curr_y + 4), line, font=font, fill=st.session_state.shadow_color)
@@ -197,7 +193,7 @@ def create_card():
         draw.text((margin_x, curr_y), line, font=font, fill=st.session_state.text_color)
         curr_y += line_spacing
 
-    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 좌측 정렬)
+    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 margin_x에 정확히 수직 줄맞춤)
     curr_y += 15
     safe_action_text = action_text.replace("👉", "▶").replace("☞", "▶")
     
@@ -206,7 +202,7 @@ def create_card():
             draw.text((margin_x + dx, curr_y + dy), safe_action_text, font=sub_font, fill=st.session_state.action_outline_color)
     draw.text((margin_x, curr_y), safe_action_text, font=sub_font, fill=st.session_state.action_text_color)
 
-    # 3) 왼쪽 하단 브랜딩
+    # 3) 왼쪽 하단 브랜딩 (margin_x 정렬)
     draw.text((margin_x, 1260), "@duruduru.page", font=brand_font, fill="#888888")
 
     return image
