@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 
-# 1. 페이지 기본 설정 및 핑크 생성버튼
+# 1. 화면 기본 설정 및 스타일
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
 st.markdown("""
@@ -42,12 +42,13 @@ if "action_text_color" not in st.session_state:
 if "action_outline_color" not in st.session_state:
     st.session_state.action_outline_color = "#FFFFFF"
 
-# 2. 헤드라인 입력
+# 2. 헤드라인 입력 (엔터로 직접 줄바꿈 가능하도록 text_area 적용)
 st.markdown("---")
 st.subheader("✍️ 헤드라인 입력")
-headline_text = st.text_input("", value="50대에 시작하는 월 300 파이프라인", label_visibility="collapsed")
+default_headline = "50대에 시작하는\n월 300 파이프라인"
+headline_text = st.text_area("", value=default_headline, height=100, label_visibility="collapsed")
 
-# 3. 폰트 및 위치 설정
+# 3. 폰트 및 설정
 font_options = {
     "혜자로운체 (추천)": "GSHYEJAROUNTTF-Bold.ttf",
     "잘난고딕": "JalnanGothicTTF.ttf",
@@ -67,11 +68,10 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# [대표님이 스케치해주신 가로 6개 x 세로 6개 바둑판 모눈 그리드 구현]
+# 6x6 바둑판 모눈 팔레트 함수
 def render_exact_grid(label, state_key):
     st.write(f"**{label}**")
     
-    # 쿼리 파라미터로 터치된 색상 반영
     qp = st.query_params
     pick_key = f"c_{state_key}"
     if pick_key in qp:
@@ -83,7 +83,6 @@ def render_exact_grid(label, state_key):
 
     cur_color = st.session_state[state_key].upper()
     
-    # 순수 HTML 6x6 바둑판 모눈판 (가로 6칸, 세로 6줄 완전 고정)
     grid_html = """
     <div style='display: grid; grid-template-columns: repeat(6, 26px); gap: 4px; width: 180px; margin-bottom: 12px;'>
     """
@@ -102,7 +101,6 @@ def render_exact_grid(label, state_key):
     grid_html += "</div>"
     st.markdown(grid_html, unsafe_allow_html=True)
 
-# 헤드라인 전용 모눈판
 render_exact_grid("글자색상", "text_color")
 if use_shadow:
     render_exact_grid("그림자색상", "shadow_color")
@@ -141,11 +139,10 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 이미지 생성 함수 (좌우 여백 80px 보장 & 첫 글자 줄맞춤)
+# 6. 이미지 생성 함수
 def create_card():
     width, height = 1080, 1350
-    margin_x = 80  # 좌우 여백 확보
-    max_text_width = width - (margin_x * 2)
+    margin_x = 80  # 좌우 여백 80px 보장
     
     if design_type == "사진형" and uploaded_file is not None:
         raw_image = Image.open(uploaded_file)
@@ -165,24 +162,15 @@ def create_card():
         sub_font = ImageFont.load_default()
         brand_font = ImageFont.load_default()
 
-    # 긴 헤드라인 밖으로 삐져나가지 않게 자동 줄바꿈
-    lines = []
-    current_line = ""
-    for char in headline_text:
-        test_line = current_line + char
-        bbox = draw.textbbox((0, 0), test_line, font=font)
-        if (bbox[2] - bbox[0]) <= max_text_width:
-            current_line = test_line
-        else:
-            lines.append(current_line)
-            current_line = char
-    if current_line:
-        lines.append(current_line)
+    # 대표님이 엔터 친 그대로 줄 분리
+    lines = [line.strip() for line in headline_text.split("\n") if line.strip()]
+    if not lines:
+        lines = ["문구를 입력하세요"]
 
     curr_y = text_y_pos
     line_spacing = int(font_size * 1.35)
     
-    # 1) 헤드라인 출력 (좌측 margin_x에 완벽 정렬)
+    # 1) 헤드라인 출력 (대표님이 나눈 줄 그대로 좌측 80px 정렬)
     for line in lines:
         if use_shadow:
             draw.text((margin_x + 4, curr_y + 4), line, font=font, fill=st.session_state.shadow_color)
@@ -192,8 +180,8 @@ def create_card():
         draw.text((margin_x, curr_y), line, font=font, fill=st.session_state.text_color)
         curr_y += line_spacing
 
-    # 2) 캡션유도문장 출력 (헤드라인 첫 글자와 동일한 margin_x에 정확히 수직 줄맞춤)
-    curr_y += 20
+    # 2) 캡션유도문장 출력 (헤드라인 마지막 줄 바로 아래에 좌측 정렬로 배치)
+    curr_y += 15
     safe_action_text = action_text.replace("👉", "▶").replace("☞", "▶")
     
     if use_action_outline:
@@ -201,7 +189,7 @@ def create_card():
             draw.text((margin_x + dx, curr_y + dy), safe_action_text, font=sub_font, fill=st.session_state.action_outline_color)
     draw.text((margin_x, curr_y), safe_action_text, font=sub_font, fill=st.session_state.action_text_color)
 
-    # 3) 왼쪽 하단 브랜딩 (margin_x 정렬)
+    # 3) 왼쪽 하단 브랜딩
     draw.text((margin_x, 1260), "@duruduru.page", font=brand_font, fill="#888888")
 
     return image
