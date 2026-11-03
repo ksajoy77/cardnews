@@ -2,9 +2,10 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 
-# 1. 화면 기본 설정 및 스타일
+# 1. 화면 기본 설정
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
+# 하단 생성 버튼 인디핑크 전용 스타일
 st.markdown("""
 <style>
 div[data-testid="stButton"] > button {
@@ -20,35 +21,41 @@ div[data-testid="stButton"] > button {
 
 st.title("📸 카드뉴스공장")
 
-# 36가지 6x6 전용 컬러 팔레트 (가로 6칸 x 세로 6줄)
-PALETTE_36 = [
-    "#000000", "#333333", "#666666", "#999999", "#D9D9D9", "#FFFFFF",
-    "#8B0000", "#FF0000", "#FF453A", "#FF6B6B", "#FF8E8E", "#FFC1C1",
-    "#D35400", "#FF851B", "#FFA500", "#FFD700", "#FFE812", "#FFF9E6",
-    "#1E4620", "#2ECC40", "#30D158", "#20C997", "#A8E6CF", "#E9F3ED",
-    "#001F3F", "#0074D9", "#007AFF", "#32ADE6", "#7FDBFF", "#E1F5FE",
-    "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
+# 가로 4칸 x 세로 6줄 (총 24가지 핵심 실전 컬러)
+PALETTE_24 = [
+    # 1행: 기본 무채색
+    "#000000", "#555555", "#AAAAAA", "#FFFFFF",
+    # 2행: 레드 & 코랄
+    "#8B0000", "#FF0000", "#FF453A", "#FF8E8E",
+    # 3행: 오렌지 & 옐로우
+    "#FF851B", "#FFA500", "#FFE812", "#FFF9E6",
+    # 4행: 그린 & 민트
+    "#1E4620", "#30D158", "#20C997", "#E9F3ED",
+    # 5행: 블루 & 인디고
+    "#001F3F", "#007AFF", "#32ADE6", "#E1F5FE",
+    # 6행: 퍼플 & 감성 핑크
+    "#4B0082", "#AF52DE", "#F4C2C2", "#F8EDE9"
 ]
 
 # 세션 상태 초기화
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
-    st.session_state.shadow_color = "#999999"
+    st.session_state.shadow_color = "#AAAAAA"
 if "outline_color" not in st.session_state:
     st.session_state.outline_color = "#FFFFFF"
 if "action_text_color" not in st.session_state:
-    st.session_state.action_text_color = "#FF3B30"
+    st.session_state.action_text_color = "#FF0000"
 if "action_outline_color" not in st.session_state:
     st.session_state.action_outline_color = "#FFFFFF"
 
-# 2. 헤드라인 입력 (엔터로 직접 줄바꿈 가능하도록 text_area 적용)
+# 2. 헤드라인 입력 (엔터 줄바꿈 지원)
 st.markdown("---")
 st.subheader("✍️ 헤드라인 입력")
 default_headline = "50대에 시작하는\n월 300 파이프라인"
 headline_text = st.text_area("", value=default_headline, height=100, label_visibility="collapsed")
 
-# 3. 폰트 및 설정
+# 3. 폰트 및 위치 설정
 font_options = {
     "혜자로운체 (추천)": "GSHYEJAROUNTTF-Bold.ttf",
     "잘난고딕": "JalnanGothicTTF.ttf",
@@ -68,8 +75,8 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 6x6 바둑판 모눈 팔레트 함수
-def render_exact_grid(label, state_key):
+# 가로 4칸 x 세로 6줄 미니 컬러 바둑판 함수
+def render_4x6_grid(label, state_key):
     st.write(f"**{label}**")
     
     qp = st.query_params
@@ -83,29 +90,31 @@ def render_exact_grid(label, state_key):
 
     cur_color = st.session_state[state_key].upper()
     
+    # 가로 4칸 x 세로 6줄 (모바일 폭에 딱 맞는 바둑판)
     grid_html = """
-    <div style='display: grid; grid-template-columns: repeat(6, 26px); gap: 4px; width: 180px; margin-bottom: 12px;'>
+    <div style='display: grid; grid-template-columns: repeat(4, 40px); gap: 6px; width: 180px; margin-bottom: 12px;'>
     """
-    for c in PALETTE_36:
+    for c in PALETTE_24:
         is_sel = (c.upper() == cur_color)
         border = "3px solid #FF3B30" if is_sel else "1px solid #BBBBBB"
         mark = "✔" if is_sel else ""
-        txt_c = "#FFFFFF" if c in ["#000000", "#333333", "#666666", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
+        txt_c = "#FFFFFF" if c in ["#000000", "#555555", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
         
         url_color = c.replace("#", "%23")
         grid_html += f"""
         <a href='?{pick_key}={url_color}' target='_self' style='text-decoration:none;'>
-            <div style='background-color:{c}; width:26px; height:26px; border-radius:3px; border:{border}; display:flex; align-items:center; justify-content:center; font-size:12px; color:{txt_c}; font-weight:bold;'>{mark}</div>
+            <div style='background-color:{c}; width:40px; height:30px; border-radius:4px; border:{border}; display:flex; align-items:center; justify-content:center; font-size:13px; color:{txt_c}; font-weight:bold;'>{mark}</div>
         </a>
         """
     grid_html += "</div>"
     st.markdown(grid_html, unsafe_allow_html=True)
 
-render_exact_grid("글자색상", "text_color")
+# 헤드라인 전용 4x6 바둑판
+render_4x6_grid("글자색상", "text_color")
 if use_shadow:
-    render_exact_grid("그림자색상", "shadow_color")
+    render_4x6_grid("그림자색상", "shadow_color")
 if use_outline:
-    render_exact_grid("외곽선색상", "outline_color")
+    render_4x6_grid("외곽선색상", "outline_color")
 
 # 4. 캡션유도문장
 st.markdown("---")
@@ -113,9 +122,9 @@ st.subheader("📢 캡션유도문장")
 action_text = st.text_input("", value="▶ 상세한 내용은 본문 내용 확인", label_visibility="collapsed")
 
 use_action_outline = st.checkbox("외곽선", value=False, key="chk_act_out")
-render_exact_grid("글자색상", "action_text_color")
+render_4x6_grid("글자색상", "action_text_color")
 if use_action_outline:
-    render_exact_grid("외곽선색상", "action_outline_color")
+    render_4x6_grid("외곽선색상", "action_outline_color")
 
 # 5. 디자인 선택
 st.markdown("---")
@@ -162,7 +171,6 @@ def create_card():
         sub_font = ImageFont.load_default()
         brand_font = ImageFont.load_default()
 
-    # 대표님이 엔터 친 그대로 줄 분리
     lines = [line.strip() for line in headline_text.split("\n") if line.strip()]
     if not lines:
         lines = ["문구를 입력하세요"]
@@ -170,7 +178,7 @@ def create_card():
     curr_y = text_y_pos
     line_spacing = int(font_size * 1.35)
     
-    # 1) 헤드라인 출력 (대표님이 나눈 줄 그대로 좌측 80px 정렬)
+    # 1) 헤드라인 출력
     for line in lines:
         if use_shadow:
             draw.text((margin_x + 4, curr_y + 4), line, font=font, fill=st.session_state.shadow_color)
@@ -180,7 +188,7 @@ def create_card():
         draw.text((margin_x, curr_y), line, font=font, fill=st.session_state.text_color)
         curr_y += line_spacing
 
-    # 2) 캡션유도문장 출력 (헤드라인 마지막 줄 바로 아래에 좌측 정렬로 배치)
+    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 margin_x에 정확히 정렬)
     curr_y += 15
     safe_action_text = action_text.replace("👉", "▶").replace("☞", "▶")
     
