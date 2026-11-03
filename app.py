@@ -1,14 +1,12 @@
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
-import textwrap
 
-# 1. 화면 기본 설정 및 스타일
+# 1. 페이지 기본 설정 및 핑크 생성버튼
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
 st.markdown("""
 <style>
-/* 카드뉴스 즉시 생성하기 핑크 버튼 */
 div[data-testid="stButton"] > button {
     background-color: #F4C2C2 !important;
     color: #333333 !important;
@@ -17,21 +15,22 @@ div[data-testid="stButton"] > button {
     padding: 0.7rem 1rem !important;
     border-radius: 10px !important;
 }
-/* 컬러 선택기 모바일 최적화 (가로 60px 깔끔한 네모 타일) */
-input[type="color"] {
-    width: 65px !important;
-    height: 40px !important;
-    border-radius: 6px !important;
-    border: 1px solid #ccc !important;
-    padding: 2px !important;
-    cursor: pointer !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
 st.title("📸 카드뉴스공장")
 
-# 기본 색상 세션
+# 36가지 6x6 전용 컬러 팔레트 (가로 6칸 x 세로 6줄)
+PALETTE_36 = [
+    "#000000", "#333333", "#666666", "#999999", "#D9D9D9", "#FFFFFF",
+    "#8B0000", "#FF0000", "#FF453A", "#FF6B6B", "#FF8E8E", "#FFC1C1",
+    "#D35400", "#FF851B", "#FFA500", "#FFD700", "#FFE812", "#FFF9E6",
+    "#1E4620", "#2ECC40", "#30D158", "#20C997", "#A8E6CF", "#E9F3ED",
+    "#001F3F", "#0074D9", "#007AFF", "#32ADE6", "#7FDBFF", "#E1F5FE",
+    "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
+]
+
+# 세션 상태 초기화
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
@@ -48,7 +47,7 @@ st.markdown("---")
 st.subheader("✍️ 헤드라인 입력")
 headline_text = st.text_input("", value="50대에 시작하는 월 300 파이프라인", label_visibility="collapsed")
 
-# 3. 폰트 및 스타일 설정
+# 3. 폰트 및 위치 설정
 font_options = {
     "혜자로운체 (추천)": "GSHYEJAROUNTTF-Bold.ttf",
     "잘난고딕": "JalnanGothicTTF.ttf",
@@ -68,17 +67,47 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 모바일 절대 안 깨지는 컬러 팔레트 타일
-def color_tile(label, key_name):
+# [대표님이 스케치해주신 가로 6개 x 세로 6개 바둑판 모눈 그리드 구현]
+def render_exact_grid(label, state_key):
     st.write(f"**{label}**")
-    val = st.color_picker("", st.session_state[key_name], key=f"pk_{key_name}", label_visibility="collapsed")
-    st.session_state[key_name] = val
+    
+    # 쿼리 파라미터로 터치된 색상 반영
+    qp = st.query_params
+    pick_key = f"c_{state_key}"
+    if pick_key in qp:
+        chosen_color = qp[pick_key]
+        if chosen_color != st.session_state[state_key]:
+            st.session_state[state_key] = chosen_color
+            st.query_params.clear()
+            st.rerun()
 
-color_tile("글자색상", "text_color")
+    cur_color = st.session_state[state_key].upper()
+    
+    # 순수 HTML 6x6 바둑판 모눈판 (가로 6칸, 세로 6줄 완전 고정)
+    grid_html = """
+    <div style='display: grid; grid-template-columns: repeat(6, 26px); gap: 4px; width: 180px; margin-bottom: 12px;'>
+    """
+    for c in PALETTE_36:
+        is_sel = (c.upper() == cur_color)
+        border = "3px solid #FF3B30" if is_sel else "1px solid #BBBBBB"
+        mark = "✔" if is_sel else ""
+        txt_c = "#FFFFFF" if c in ["#000000", "#333333", "#666666", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
+        
+        url_color = c.replace("#", "%23")
+        grid_html += f"""
+        <a href='?{pick_key}={url_color}' target='_self' style='text-decoration:none;'>
+            <div style='background-color:{c}; width:26px; height:26px; border-radius:3px; border:{border}; display:flex; align-items:center; justify-content:center; font-size:12px; color:{txt_c}; font-weight:bold;'>{mark}</div>
+        </a>
+        """
+    grid_html += "</div>"
+    st.markdown(grid_html, unsafe_allow_html=True)
+
+# 헤드라인 전용 모눈판
+render_exact_grid("글자색상", "text_color")
 if use_shadow:
-    color_tile("그림자색상", "shadow_color")
+    render_exact_grid("그림자색상", "shadow_color")
 if use_outline:
-    color_tile("외곽선색상", "outline_color")
+    render_exact_grid("외곽선색상", "outline_color")
 
 # 4. 캡션유도문장
 st.markdown("---")
@@ -86,9 +115,9 @@ st.subheader("📢 캡션유도문장")
 action_text = st.text_input("", value="▶ 상세한 내용은 본문 내용 확인", label_visibility="collapsed")
 
 use_action_outline = st.checkbox("외곽선", value=False, key="chk_act_out")
-color_tile("글자색상", "action_text_color")
+render_exact_grid("글자색상", "action_text_color")
 if use_action_outline:
-    color_tile("외곽선색상", "action_outline_color")
+    render_exact_grid("외곽선색상", "action_outline_color")
 
 # 5. 디자인 선택
 st.markdown("---")
@@ -112,10 +141,10 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 이미지 생성 함수 (좌우 안전 여백 80px 보장 및 자동 줄바꿈)
+# 6. 이미지 생성 함수 (좌우 여백 80px 보장 & 첫 글자 줄맞춤)
 def create_card():
     width, height = 1080, 1350
-    margin_x = 80  # 좌우 여백 80px 확보 (글자 잘림 원천 방지)
+    margin_x = 80  # 좌우 여백 확보
     max_text_width = width - (margin_x * 2)
     
     if design_type == "사진형" and uploaded_file is not None:
@@ -136,7 +165,7 @@ def create_card():
         sub_font = ImageFont.load_default()
         brand_font = ImageFont.load_default()
 
-    # 1) 헤드라인 자동 줄바꿈 계산 (여백 보장)
+    # 긴 헤드라인 밖으로 삐져나가지 않게 자동 줄바꿈
     lines = []
     current_line = ""
     for char in headline_text:
@@ -150,10 +179,10 @@ def create_card():
     if current_line:
         lines.append(current_line)
 
-    # 헤드라인 출력 (좌측 80px 여백에 정렬)
     curr_y = text_y_pos
     line_spacing = int(font_size * 1.35)
     
+    # 1) 헤드라인 출력 (좌측 margin_x에 완벽 정렬)
     for line in lines:
         if use_shadow:
             draw.text((margin_x + 4, curr_y + 4), line, font=font, fill=st.session_state.shadow_color)
@@ -163,7 +192,7 @@ def create_card():
         draw.text((margin_x, curr_y), line, font=font, fill=st.session_state.text_color)
         curr_y += line_spacing
 
-    # 2) 캡션유도문장 출력 (헤드라인 첫 글자 기준 margin_x인 80px에 정확히 정렬 + 위아래 간격 30px)
+    # 2) 캡션유도문장 출력 (헤드라인 첫 글자와 동일한 margin_x에 정확히 수직 줄맞춤)
     curr_y += 20
     safe_action_text = action_text.replace("👉", "▶").replace("☞", "▶")
     
@@ -172,7 +201,7 @@ def create_card():
             draw.text((margin_x + dx, curr_y + dy), safe_action_text, font=sub_font, fill=st.session_state.action_outline_color)
     draw.text((margin_x, curr_y), safe_action_text, font=sub_font, fill=st.session_state.action_text_color)
 
-    # 3) 왼쪽 하단 브랜딩 (좌측 여백 80px 정렬)
+    # 3) 왼쪽 하단 브랜딩 (margin_x 정렬)
     draw.text((margin_x, 1260), "@duruduru.page", font=brand_font, fill="#888888")
 
     return image
