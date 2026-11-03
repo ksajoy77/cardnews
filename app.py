@@ -5,9 +5,10 @@ import io
 # 1. 화면 기본 설정
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
-# 맨 아래 '생성하기' 버튼만 핑크색을 타겟팅하고, 모눈판에는 간섭하지 않도록 CSS 수정
+# CSS: 6x6 모눈판 전용 스타일 및 인디핑크 생성 버튼
 st.markdown("""
 <style>
+/* 맨 아래 생성하기 버튼만 인디핑크 */
 div[data-testid="stButton"]:last-of-type > button {
     background-color: #F4C2C2 !important;
     color: #333333 !important;
@@ -20,34 +21,53 @@ div[data-testid="stButton"]:last-of-type > button:hover {
     background-color: #EAAFAF !important;
     color: #111111 !important;
 }
-/* 모눈판 버튼 크기 최적화 */
-div[data-testid="column"] button {
-    height: 32px !important;
+
+/* 6x6 초소형 모눈 타일 버튼 (약 0.5cm) */
+.color-grid-col button {
+    height: 38px !important;
+    min-height: 38px !important;
     padding: 0px !important;
-    border-radius: 4px !important;
-    font-size: 11px !important;
+    margin: 2px 0px !important;
+    border-radius: 6px !important;
+    border: 1px solid rgba(0,0,0,0.15) !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("📸 카드뉴스공장")
 
-# 36가지 실전 비즈니스 & 감성 컬러 팔레트 (이름과 실제 색상 매칭)
-PALETTE_36 = {
-    "검정": "#000000", "먹색": "#1C1C1E", "다크그레이": "#3A3A3C", "회색": "#8E8E93", "라이트그레이": "#E5E5EA", "순백색": "#FFFFFF",
-    "레드": "#FF3B30", "코랄": "#FF6961", "오렌지": "#FF9500", "골드": "#FFB340", "옐로우": "#FFE812", "레몬": "#FFF9E6",
-    "네온그린": "#30D158", "포레스트": "#1B5E20", "민트": "#E9F3ED", "스카이블루": "#32ADE6", "블루": "#007AFF", "딥블루": "#0A84FF",
-    "인디고": "#5856D6", "퍼플": "#AF52DE", "라벤더": "#F1E4FF", "마젠타": "#FF2D55", "인디핑크": "#F4C2C2", "앤디핑크": "#F8EDE9",
-    "브라운": "#795548", "초콜릿": "#4E342E", "카키": "#556B2F", "베이지": "#F6F4EE", "아이보리": "#FDFBF7", "크림": "#FFFDF9",
-    "와인": "#880E4F", "네이비": "#0D47A1", "올리브": "#827717", "피치": "#FFDAB9", "살구": "#FFE4E1", "차콜": "#212121"
-}
+# 36가지 실전 6x6 컬러 팔레트 (가로 6개 x 세로 6개)
+PALETTE_36 = [
+    # 1행: 무채색 기본 라인
+    "#000000", "#333333", "#666666", "#999999", "#D9D9D9", "#FFFFFF",
+    # 2행: 레드 & 코랄 계열
+    "#8B0000", "#FF0000", "#FF453A", "#FF6B6B", "#FF8E8E", "#FFC1C1",
+    # 3행: 오렌지 & 옐로우 계열
+    "#D35400", "#FF851B", "#FFA500", "#FFD700", "#FFE812", "#FFF9E6",
+    # 4행: 그린 & 민트 계열
+    "#1E4620", "#2ECC40", "#30D158", "#20C997", "#A8E6CF", "#E9F3ED",
+    # 5행: 블루 & 인디고 계열
+    "#001F3F", "#0074D9", "#007AFF", "#32ADE6", "#7FDBFF", "#E1F5FE",
+    # 6행: 퍼플 & 감성 핑크 계열
+    "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
+]
+
+# 세션 상태에 선택한 색상 저장
+if "text_color" not in st.session_state:
+    st.session_state.text_color = "#000000"
+if "shadow_color" not in st.session_state:
+    st.session_state.shadow_color = "#999999"
+if "outline_color" not in st.session_state:
+    st.session_state.outline_color = "#FFFFFF"
 
 # 2. 헤드라인 입력
 st.markdown("---")
 st.subheader("✍️ 헤드라인 입력")
 headline_text = st.text_input("", value="50대에 시작하는 월 300 파이프라인", label_visibility="collapsed")
 
-# 3. 폰트 및 세부 설정
+# 3. 폰트 및 설정
 font_options = {
     "혜자로운체 (추천)": "GSHYEJAROUNTTF-Bold.ttf",
     "잘난고딕": "JalnanGothicTTF.ttf",
@@ -59,7 +79,7 @@ font_path = font_options[selected_font_label]
 font_size = st.slider("글자 크기", min_value=30, max_value=90, value=55)
 text_y_pos = st.slider("헤드라인 위치", min_value=50, max_value=500, value=150)
 
-# 두껍게 / 그림자 / 외곽선 체크박스 (색상 위 배치)
+# 두껍게 / 그림자 / 외곽선 체크박스
 col_chk1, col_chk2, col_chk3 = st.columns(3)
 with col_chk1:
     use_bold = st.checkbox("두껍게", value=True)
@@ -68,36 +88,55 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 모바일 호환 36색상 선택기 (색상 미리보기 상자 포함)
-def color_picker_box(label, default_name):
-    st.write(f"**{label}**")
-    color_keys = list(PALETTE_36.keys())
-    choice = st.selectbox(
-        f"{label} 선택",
-        options=color_keys,
-        index=color_keys.index(default_name),
-        label_visibility="collapsed"
-    )
-    hex_code = PALETTE_36[choice]
-    # 선택된 색상을 시각적으로 보여주는 작은 컬러 바
-    st.markdown(
-        f'<div style="background-color: {hex_code}; height: 16px; width: 100%; border-radius: 4px; border: 1px solid #ccc; margin-bottom: 10px;"></div>',
-        unsafe_allow_html=True
-    )
-    return hex_code
+# 6x6 초소형 컬러 모눈판 렌더링 함수
+def render_6x6_grid(title, state_key):
+    st.write(f"**{title}**")
+    current_color = st.session_state[state_key]
+    
+    # 6줄 x 6칸
+    for row in range(6):
+        cols = st.columns(6)
+        for col_idx in range(6):
+            idx = row * 6 + col_idx
+            hex_val = PALETTE_36[idx]
+            
+            # 선택된 색상에는 체크 표시
+            is_selected = (current_color.upper() == hex_val.upper())
+            mark = "✔" if is_selected else ""
+            
+            # 텍스트 명도에 따른 아이콘 색상 자동 조절
+            txt_c = "#FFFFFF" if hex_val in ["#000000", "#333333", "#666666", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
+            
+            with cols[col_idx]:
+                st.markdown(f"""
+                <div class="color-grid-col">
+                    <style>
+                    div[data-testid="stHorizontalBlock"] div:nth-child({col_idx+1}) button[key="{state_key}_{idx}"] {{
+                        background-color: {hex_val} !important;
+                        color: {txt_c} !important;
+                    }}
+                    </style>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(mark, key=f"{state_key}_{idx}", use_container_width=True):
+                    st.session_state[state_key] = hex_val
+                    st.rerun()
 
-# 글자 색상 선택
-text_color = color_picker_box("글자 색상", "검정")
+# 글자 색상 모눈판
+render_6x6_grid("글자 색상", "text_color")
 
-# 그림자 색상 선택 (체크 시 활성화)
-shadow_color = "#8E8E93"
+# 그림자 색상 모눈판 (체크 시 노출)
 if use_shadow:
-    shadow_color = color_picker_box("그림자 색상", "회색")
+    render_6x6_grid("그림자 색상", "shadow_color")
 
-# 외곽선 색상 선택 (체크 시 활성화)
-outline_color = "#FFFFFF"
+# 외곽선 색상 모눈판 (체크 시 노출)
 if use_outline:
-    outline_color = color_picker_box("외곽선 색상", "순백색")
+    render_6x6_grid("외곽선 색상", "outline_color")
+
+text_color = st.session_state.text_color
+shadow_color = st.session_state.shadow_color
+outline_color = st.session_state.outline_color
 
 # 4. 캡션유도문장
 st.markdown("---")
@@ -126,7 +165,7 @@ else:
     st.markdown("**📁 파일불러오기**")
     uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 6. 카드 이미지 생성 함수
+# 6. 이미지 생성 함수
 def create_card():
     width, height = 1080, 1080
     
