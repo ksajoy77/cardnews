@@ -5,56 +5,19 @@ import io
 # 1. 화면 기본 설정
 st.set_page_config(page_title="카드뉴스공장", layout="centered")
 
-# CSS: 6x6 모눈판 전용 스타일 및 인디핑크 생성 버튼
-st.markdown("""
-<style>
-/* 맨 아래 생성하기 버튼만 인디핑크 */
-div[data-testid="stButton"]:last-of-type > button {
-    background-color: #F4C2C2 !important;
-    color: #333333 !important;
-    border: none !important;
-    font-weight: bold !important;
-    padding: 0.7rem 1rem !important;
-    border-radius: 10px !important;
-}
-div[data-testid="stButton"]:last-of-type > button:hover {
-    background-color: #EAAFAF !important;
-    color: #111111 !important;
-}
-
-/* 6x6 초소형 모눈 타일 버튼 (약 0.5cm) */
-.color-grid-col button {
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 0px !important;
-    margin: 2px 0px !important;
-    border-radius: 6px !important;
-    border: 1px solid rgba(0,0,0,0.15) !important;
-    font-size: 14px !important;
-    font-weight: bold !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 st.title("📸 카드뉴스공장")
 
 # 36가지 실전 6x6 컬러 팔레트 (가로 6개 x 세로 6개)
 PALETTE_36 = [
-    # 1행: 무채색 기본 라인
     "#000000", "#333333", "#666666", "#999999", "#D9D9D9", "#FFFFFF",
-    # 2행: 레드 & 코랄 계열
     "#8B0000", "#FF0000", "#FF453A", "#FF6B6B", "#FF8E8E", "#FFC1C1",
-    # 3행: 오렌지 & 옐로우 계열
     "#D35400", "#FF851B", "#FFA500", "#FFD700", "#FFE812", "#FFF9E6",
-    # 4행: 그린 & 민트 계열
     "#1E4620", "#2ECC40", "#30D158", "#20C997", "#A8E6CF", "#E9F3ED",
-    # 5행: 블루 & 인디고 계열
     "#001F3F", "#0074D9", "#007AFF", "#32ADE6", "#7FDBFF", "#E1F5FE",
-    # 6행: 퍼플 & 감성 핑크 계열
     "#4B0082", "#B10DC9", "#AF52DE", "#FF2D55", "#F4C2C2", "#F8EDE9"
 ]
 
-# 세션 상태에 선택한 색상 저장
+# 세션 상태 초기화
 if "text_color" not in st.session_state:
     st.session_state.text_color = "#000000"
 if "shadow_color" not in st.session_state:
@@ -88,51 +51,37 @@ with col_chk2:
 with col_chk3:
     use_outline = st.checkbox("외곽선", value=False)
 
-# 6x6 초소형 컬러 모눈판 렌더링 함수
-def render_6x6_grid(title, state_key):
+# 모바일 전용 6x6 모눈판 렌더링 함수
+def render_mobile_grid(title, state_key):
     st.write(f"**{title}**")
-    current_color = st.session_state[state_key]
+    current_val = st.session_state[state_key]
     
-    # 6줄 x 6칸
-    for row in range(6):
-        cols = st.columns(6)
-        for col_idx in range(6):
-            idx = row * 6 + col_idx
-            hex_val = PALETTE_36[idx]
-            
-            # 선택된 색상에는 체크 표시
-            is_selected = (current_color.upper() == hex_val.upper())
-            mark = "✔" if is_selected else ""
-            
-            # 텍스트 명도에 따른 아이콘 색상 자동 조절
-            txt_c = "#FFFFFF" if hex_val in ["#000000", "#333333", "#666666", "#8B0000", "#1E4620", "#001F3F", "#4B0082"] else "#000000"
-            
-            with cols[col_idx]:
-                st.markdown(f"""
-                <div class="color-grid-col">
-                    <style>
-                    div[data-testid="stHorizontalBlock"] div:nth-child({col_idx+1}) button[key="{state_key}_{idx}"] {{
-                        background-color: {hex_val} !important;
-                        color: {txt_c} !important;
-                    }}
-                    </style>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button(mark, key=f"{state_key}_{idx}", use_container_width=True):
-                    st.session_state[state_key] = hex_val
-                    st.rerun()
+    # 6개씩 묶어서 6줄로 구성
+    for row_idx in range(6):
+        row_colors = PALETTE_36[row_idx * 6 : (row_idx + 1) * 6]
+        choice = st.radio(
+            f"{title}_{row_idx}",
+            options=row_colors,
+            index=row_colors.index(current_val) if current_val in row_colors else None,
+            format_func=lambda c: f"■ {c}",
+            horizontal=True,
+            key=f"grid_{state_key}_{row_idx}",
+            label_visibility="collapsed"
+        )
+        if choice and choice != current_val:
+            st.session_state[state_key] = choice
+            st.rerun()
 
 # 글자 색상 모눈판
-render_6x6_grid("글자 색상", "text_color")
+render_mobile_grid("글자 색상", "text_color")
 
 # 그림자 색상 모눈판 (체크 시 노출)
 if use_shadow:
-    render_6x6_grid("그림자 색상", "shadow_color")
+    render_mobile_grid("그림자 색상", "shadow_color")
 
 # 외곽선 색상 모눈판 (체크 시 노출)
 if use_outline:
-    render_6x6_grid("외곽선 색상", "outline_color")
+    render_mobile_grid("외곽선 색상", "outline_color")
 
 text_color = st.session_state.text_color
 shadow_color = st.session_state.shadow_color
@@ -211,6 +160,21 @@ def create_card():
 
 # 7. 버튼 및 다운로드
 st.markdown("---")
+
+# 인디핑크 생성 버튼 전용 CSS
+st.markdown("""
+<style>
+div.stButton > button {
+    background-color: #F4C2C2 !important;
+    color: #333333 !important;
+    border: none !important;
+    font-weight: bold !important;
+    padding: 0.7rem 1rem !important;
+    border-radius: 10px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 if st.button("🚀 카드뉴스 이미지 즉시 생성하기", use_container_width=True):
     result_img = create_card()
     st.image(result_img, caption="완성된 카드뉴스 미리보기", use_container_width=True)
